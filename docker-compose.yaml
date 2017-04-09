@@ -6,11 +6,53 @@ services:
     image: ergw/ergw-pgw-u-node
     env_file: env
     privileged: true
-    network_mode: host
+    hostname: pgw-u-node
+    networks:
+      cluster:
+      s5u:
+        ipv4_address: 10.103.1.4
+      upstream:
+        ipv4_address: 10.102.1.4
 
   pgw-c-node:
     build: pgw-c-node
     image: ergw/ergw-pgw-c-node
     env_file: env
     privileged: true
-    network_mode: host
+    hostname: pgw-c-node
+    networks:
+      cluster:
+      s5c:
+        ipv4_address: 10.101.1.4
+
+networks:
+  cluster:
+    driver: bridge
+
+  upstream:
+    driver: macvlan
+    driver_opts:
+      parent: p4p2_1
+    ipam:
+      driver: default
+      config:
+        - subnet: 10.102.1.0/16
+          gateway: 10.102.1.1
+
+  s5u:
+    driver: macvlan
+    driver_opts:
+      parent: p4p1_3
+    ipam:
+      driver: default
+      config:
+        - subnet: 10.103.1.0/16
+
+  s5c:
+    driver: macvlan
+    driver_opts:
+      parent: p4p1_2
+    ipam:
+      driver: default
+      config:
+        - subnet: 10.101.1.0/16

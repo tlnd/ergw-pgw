@@ -42,10 +42,16 @@ parse_ip_net PGW_CLIENT_IP_NET || VALIDATION_ERROR=1
 
 [ -n "$VALIDATION_ERROR" ] && exit_msg "Exiting due to missing configuration parameters"
 
+# Find s5u interface
+export PGW_S5U_IFACE=$(ip r | grep $PGW_S5U_IPADDR | cut -d ' ' -f 3)
+
 # create the config from template
 envsubst < /config/pgw-u-node.config.templ > /etc/ergw-gtp-u-node/ergw-gtp-u-node.config
 
 # unload gtp module as reset; will be reloaded on start of application
 #rmmod gtp
+
+# Wait until gtp0 is available and add client route -- needs improvement
+(sleep 60 ; ip r add $PGW_CLIENT_IP_NET dev gtp0) &
 
 exec "$@"

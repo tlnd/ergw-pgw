@@ -67,9 +67,15 @@ parse_ip_addr PGW_CLIENT_SECONDARY_NBNS || VALIDATION_ERROR=1
 [ -n "$VALIDATION_ERROR" ] && exit_msg "Exiting due to missing configuration parameters"
 
 
+# Find s5c interface
+export PGW_S5C_IFACE=$(ip r | grep $PGW_S5C_IPADDR | cut -d ' ' -f 3)
+
 
 # create the config from template
 envsubst < /config/pgw-c-node.config.templ > /etc/ergw-gtp-c-node/ergw-gtp-c-node.config
 
-exec "$@"
 
+# "avoid" race condition with gtp-u-node
+sleep 10
+
+exec "$@"
