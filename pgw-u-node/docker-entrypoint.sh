@@ -37,8 +37,14 @@ parse_ip_addr () {
 VALIDATION_ERROR=""
 
 parse_ip_addr PGW_S5U_IPADDR || VALIDATION_ERROR=1
+parse_generic PGW_S5U_IPADDR_PREFIX_LEN || VALIDATION_ERROR=1
 parse_generic PGW_S5U_IFACE || VALIDATION_ERROR=1
 parse_ip_net PGW_CLIENT_IP_NET || VALIDATION_ERROR=1
+
+parse_ip_addr PGW_SGI_IPADDR || VALIDATION_ERROR=1
+parse_generic PGW_SGI_IPADDR_PREFIX_LEN || VALIDATION_ERROR=1
+parse_generic PGW_SGI_IFACE || VALIDATION_ERROR=1
+parse_ip_addr PGW_SGI_GW || VALIDATION_ERROR=1
 
 [ -n "$VALIDATION_ERROR" ] && exit_msg "Exiting due to missing configuration parameters"
 
@@ -47,5 +53,27 @@ envsubst < /config/pgw-u-node.config.templ > /etc/ergw-gtp-u-node/ergw-gtp-u-nod
 
 # unload gtp module as reset; will be reloaded on start of application
 #rmmod gtp
+
+# Setup VRFs
+ifup() {
+    /sbin/ip link add $1 type vrf table $2
+    /sbin/ip link set dev $1 up
+    /sbin/ip rule add oif $1 table $2
+    /sbin/ip rule add iif $1 table $2
+
+    /sbin/ip link set dev $3 master $1
+    /sbin/ip link set dev $3 up
+    /sbin/ip addr flush dev $3
+    /sbin/ip addr add $4 dev $3
+    /sbin/ip route add table $2 default via $5
+}
+
+ifup upstream 10 $PGW_SGI_IFACE $PGW_SGI_IPADDR/$PGW_SGI_IPADDR_PREFIX_LEN $PGW_SGI_GW
+ifup grx 20 $PGW_S5U_IFACE $PGW_S5U_IPADDR/$PGW_S5U_IPADDR_PREFIX_LEN $PGW_S5U_GW
+
+[ -n "$PGW_SGI_MASQ" ] && iptables -t nat -A POSTROUTING -o $PGW_SGI_IFACE -j MASQUERADE
+
+[ -n "$PGW_SET_TCP_MSS" ] && iptables -t mangle -A FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --set-mss $PGW_SET_TCP_MSS
+
 
 exec "$@"
